@@ -45,20 +45,46 @@ class FaceGestureSensorNode(Node):
             rclpy.shutdown()
             return
 
-        self.sensor_ready = True
-
+        '''
         # Set face detection score threshold (0~100)
-        self.get_logger().info("face detection threshold: {}".format(gfd.get_face_detect_thres()))
+        if gfd.set_face_detect_thres(60):
+            self.get_logger().info("Face detection threshold set to 60.")
+        else:
+            self.get_logger().error("Set the face detection threshold fail.")
+            rclpy.shutdown()
+            return
 
         # Set gesture detection score threshold (0~100)
-        self.get_logger().info("gesture detection threshold: {}".format(gfd.get_gesture_detect_thres()))
+        if gfd.set_gesture_detect_thres(60):
+            self.get_logger().info("Gesture detection threshold set to 60.")
+        else:
+            self.get_logger().error("Set the gesture detection threshold fail.")
+            rclpy.shutdown()
+            return
 
         # Set detection range, 0~100
+        if gfd.set_detect_thres(100):
+            self.get_logger().info("Detection range set to maximum.")
+        else:
+            self.get_logger().error("Set the gesture detection range fail.")
+            rclpy.shutdown()
+            return
+        '''
+
+        # Get face detection score threshold (0~100)
+        self.get_logger().info("face detection threshold: {}".format(gfd.get_face_detect_thres()))
+
+        # Get gesture detection score threshold (0~100)
+        self.get_logger().info("gesture detection threshold: {}".format(gfd.get_gesture_detect_thres()))
+
+        # Get detection range, 0~100
         self.get_logger().info("gesture detection range: {}".format(gfd.get_detect_thres()))
+
+        self.sensor_ready = True
 
     def loop_callback(self):
         # This method will be called every 500 ms
-        self.get_logger().info('Periodic callback triggered')
+        #self.get_logger().info('Periodic callback triggered')
 
         if not self.sensor_ready:
             return
@@ -73,11 +99,11 @@ class FaceGestureSensorNode(Node):
             self.get_logger().info("Detect face at (x = {}, y = {}, score = {})".format(face_x, face_y, face_score))
             
             # Get gesture type and score
-            # - 1: LIKE  - blue
-            # - 2: OK  - green
+            # - 1: LIKE  - blue LED color
+            # - 2: OK    - green
             # - 3: STOP  - red
-            # - 4: YES - yellow
-            # - 5: SIX  - purple
+            # - 4: YES   - yellow
+            # - 5: SIX   - purple
             gesture_type = gfd.get_gesture_type()
             gesture_score = gfd.get_gesture_score()
             
