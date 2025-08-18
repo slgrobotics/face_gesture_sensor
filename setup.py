@@ -12,8 +12,8 @@ package_name = 'face_gesture_sensor'
 setup(
     name=package_name,
     version='0.1.0',
-    packages=find_packages(),
-    #packages=find_packages(exclude=['test']),
+    #packages=find_packages(),
+    packages=[package_name, package_name + '/utils'],
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -21,7 +21,10 @@ setup(
         # launch files
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*'))),
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'DFRobot_GestureFaceDetection',
+        'DFRobot_RTU'],
     zip_safe=True,
     maintainer='Sergei Grichine',
     maintainer_email='slg@quakemap.com',
