@@ -32,7 +32,7 @@ class FaceGestureSensorNode(Node):
         self.create_timer(5.0, self.setup)  # Call setup after 5 seconds
         self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
         
-    def setup():
+    def setup(self):
         """
         @brief Setup function for initializing sensor thresholds.
         
