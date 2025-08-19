@@ -4,6 +4,8 @@ Based on [DFRobot Python code](https://github.com/DFRobot/DFRobot_GestureFaceDet
 
 Product Link: https://www.dfrobot.com/product-2914.html
 
+#### On a Raspberry Pi with the sensor connected to I2C:
+
 Get code (you may want to use `~/robot_ws/src` here):
 ```
 mkdir -p ~/gesture_ws/src
