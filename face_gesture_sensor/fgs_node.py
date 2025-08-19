@@ -164,8 +164,7 @@ class FaceGestureSensorNode(Node):
                 detection.results.append(hypothesis_gesture)
 
             detection_array_msg.detections.append(detection)
-            if rclpy.ok():
-                self.detection_pub.publish(detection_array_msg)  # Publish the message
+            self.detection_pub.publish(detection_array_msg)  # Publish the message
 
     def print_time(self):
         self.print_time_counter += 1
@@ -183,7 +182,6 @@ class FaceGestureSensorNode(Node):
         
     def destroy_node(self):
         self.loop_timer.cancel()  # Cancel the loop timer
-        self.get_logger().info("Destroying node...")
         #gfd.destroy()
         super().destroy_node()
 
