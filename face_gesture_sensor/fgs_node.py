@@ -33,7 +33,7 @@ class FaceGestureSensorNode(Node):
         super().__init__('face_gesture_sensor_node')  # Initialize the Node with a unique name
         self.sensor_ready = False  # Flag to indicate sensor is initialized
         self.get_logger().info('FaceGestureSensorNode node has been started!')
-        self.create_timer(5.0, self.setup)  # Call setup after 5 seconds
+        self.setup_timer = self.create_timer(5.0, self.setup)  # Call setup after 5 seconds
         self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
         self.detection_pub = self.create_publisher(Detection2DArray, 'face_gesture_detections', 10)  # Add publisher
         self.print_time_counter = 0  # Add a counter for print_time()
