@@ -5,8 +5,8 @@ from rclpy.timer import Timer
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
 
 from std_msgs.msg import Header
-from vision_msgs.msg import BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
-from geometry_msgs.msg import Pose2D
+from vision_msgs.msg import Pose2D, BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
+#from geometry_msgs.msg import Pose2D
 
 #
 # ros2 run face_gesture_sensor fgs_node
