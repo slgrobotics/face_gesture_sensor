@@ -11,6 +11,13 @@ cd ~/gesture_ws/src
 git clone https://github.com/slgrobotics/face_gesture_sensor.git
 ```
 
+Install dependencies:
+```
+sudo rosdep init    # do it once, if you haven't done it before
+rosdep update
+rosdep install --from-paths src --ignore-src --rosdistro=${ROS_DISTRO} -r -y
+```
+
 Build it:
 ```
 cd ~/gesture_ws
