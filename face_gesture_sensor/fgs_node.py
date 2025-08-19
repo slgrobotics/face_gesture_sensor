@@ -4,6 +4,7 @@ from rclpy.timer import Timer
 
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
 
+from std_msgs.msg import Header
 from vision_msgs.msg import BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
 from geometry_msgs.msg import Pose2D
 
@@ -114,7 +115,10 @@ class FaceGestureSensorNode(Node):
             self.get_logger().info("Detect gesture {}, score = {}".format(gesture_type, gesture_score))
 
             detection_array_msg = Detection2DArray()
-            detection_array_msg.header = self.get_clock().now().to_msg()
+            header = Header()
+            header.stamp = self.get_clock().now().to_msg()
+            header.frame_id = "face_gesture_sensor"  # or another appropriate frame
+            detection_array_msg.header = header
 
             center = Pose2D(x=face_x, y=face_y, theta=0.0)  # Assuming theta is not used for 2D detection
             face_bbox = BoundingBox2D(center=center, size_x=10, size_y=10)
