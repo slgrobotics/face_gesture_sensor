@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.timer import Timer
+from datetime import datetime
 
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
 
@@ -35,6 +36,7 @@ class FaceGestureSensorNode(Node):
         self.create_timer(5.0, self.setup)  # Call setup after 5 seconds
         self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
         self.detection_pub = self.create_publisher(Detection2DArray, 'face_gesture_detections', 10)  # Add publisher
+        self.print_time_counter = 0  # Add a counter for print_time()
         
     def setup(self):
         """
@@ -93,6 +95,8 @@ class FaceGestureSensorNode(Node):
         if not self.sensor_ready:
             return
 
+        self.print_time()
+
         # Check if any faces are detected
         if gfd.get_face_number() > 0:
             # Get face score and position coordinates
@@ -142,6 +146,17 @@ class FaceGestureSensorNode(Node):
             detection_array_msg.detections.append(detection)
             self.detection_pub.publish(detection_array_msg)  # Publish the message
 
+    def print_time(self):
+        self.print_time_counter += 1
+        if self.print_time_counter % 10 == 0:
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            self.get_logger().info("Current Time: {}".format(current_time))
+
+    def destroy_node(self):
+        self.get_logger().info("Destroying node...")
+        #gfd.destroy()
+        super().destroy_node()
 
 def main(args=None):
     rclpy.init(args=args)
