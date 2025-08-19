@@ -130,12 +130,6 @@ class FaceGestureSensorNode(Node):
             
             self.get_logger().info("Detect face at (x = {}, y = {}, score = {})".format(face_x, face_y, face_score))
             
-            # Get gesture type and score
-            # - 1: LIKE  - blue LED color
-            # - 2: OK    - green
-            # - 3: STOP  - red
-            # - 4: YES   - yellow
-            # - 5: SIX   - purple
             gesture_type = gfd.get_gesture_type()
             gesture_score = gfd.get_gesture_score()
 
@@ -165,7 +159,8 @@ class FaceGestureSensorNode(Node):
                 hypothesis_gesture = ObjectHypothesisWithPose()
                 hypothesis_gesture.hypothesis = ObjectHypothesis()
                 hypothesis_gesture.hypothesis.score = float(gesture_score)
-                hypothesis_gesture.hypothesis.class_id = str(gesture_type)
+                gesture_str = self.gesture_names_long.get(gesture_type, "Unknown") # or str(gesture_type)
+                hypothesis_gesture.hypothesis.class_id = gesture_str
                 detection.results.append(hypothesis_gesture)
 
             detection_array_msg.detections.append(detection)
@@ -181,8 +176,9 @@ class FaceGestureSensorNode(Node):
             self.get_logger().info(f"Current Time: {current_time} | Elapsed: {elapsed_str}")
             
     def print_gesture(self, gesture_type, gesture_score):
-        gesture_str = self.gesture_names_long.get(gesture_type, "Unknown")
-        self.get_logger().info(f"Gesture: {gesture_str}, Score: {gesture_score}")
+        if gesture_type > 0 and gesture_score > 0:
+            gesture_str = self.gesture_names_long.get(gesture_type, "Unknown")
+            self.get_logger().info(f"Gesture: {gesture_str}, Score: {gesture_score}")
         
     def destroy_node(self):
         self.loop_timer.cancel()  # Cancel the loop timer
