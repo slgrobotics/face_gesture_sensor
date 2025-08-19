@@ -4,7 +4,7 @@ from rclpy.timer import Timer
 
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
 
-from vision_msgs.msg import BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose
+from vision_msgs.msg import BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
 from geometry_msgs.msg import Pose2D
 
 #
@@ -122,14 +122,16 @@ class FaceGestureSensorNode(Node):
 
             # Fill face_score in results
             hypothesis_face = ObjectHypothesisWithPose()
-            hypothesis_face.score = float(face_score)
-            hypothesis_face.id = "face"  # Label for face detection
+            hypothesis_face.hypothesis = ObjectHypothesis()
+            hypothesis_face.hypothesis.score = float(face_score)
+            hypothesis_face.hypothesis.class_id = "face"
             detection.results.append(hypothesis_face)
 
             # Fill gesture_score in results
             hypothesis_gesture = ObjectHypothesisWithPose()
-            hypothesis_gesture.score = float(gesture_score)
-            hypothesis_gesture.id = str(gesture_type)  # Label for gesture type
+            hypothesis_gesture.hypothesis = ObjectHypothesis()
+            hypothesis_gesture.hypothesis.score = float(gesture_score)
+            hypothesis_gesture.hypothesis.class_id = str(gesture_type)
             detection.results.append(hypothesis_gesture)
 
             detection_array_msg.detections.append(detection)
