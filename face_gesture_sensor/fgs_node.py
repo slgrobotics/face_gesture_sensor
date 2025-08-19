@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.timer import Timer
 from datetime import datetime
+#import traceback
 
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
 
@@ -191,7 +192,10 @@ def main(args=None):
     try:
         rclpy.spin(node)  # Keep the node alive and processing callbacks
     except KeyboardInterrupt:
-        node.get_logger().info("Keyboard interrupt received. Shutting down node.")
+        # can't log here, rclpy is already shutting down
+        pass  # Handle keyboard interrupt gracefully
+    #except Exception:
+    #     traceback.print_exc()
     finally:
         node.destroy_node()
         if rclpy.ok():
