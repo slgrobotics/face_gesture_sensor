@@ -4,6 +4,9 @@ from rclpy.timer import Timer
 
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
 
+from vision_msgs.msg import BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose
+from geometry_msgs.msg import Pose2D
+
 #
 # ros2 run face_gesture_sensor fgs_node
 #
@@ -31,6 +34,7 @@ class FaceGestureSensorNode(Node):
         self.get_logger().info('FaceGestureSensorNode node has been started!')
         self.create_timer(5.0, self.setup)  # Call setup after 5 seconds
         self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
+        self.detection_pub = self.create_publisher(Detection2DArray, 'face_gesture_detections', 10)  # Add publisher
         
     def setup(self):
         """
@@ -108,7 +112,28 @@ class FaceGestureSensorNode(Node):
             gesture_score = gfd.get_gesture_score()
             
             self.get_logger().info("Detect gesture {}, score = {}".format(gesture_type, gesture_score))
-        
+
+            detection_array_msg = Detection2DArray()
+            detection_array_msg.header = self.get_clock().now().to_msg()
+
+            center = Pose2D(x=face_x, y=face_y, theta=0.0)  # Assuming theta is not used for 2D detection
+            face_bbox = BoundingBox2D(center=center, size_x=10, size_y=10)
+            detection = Detection2D(bbox=face_bbox)
+
+            # Fill face_score in results
+            hypothesis_face = ObjectHypothesisWithPose()
+            hypothesis_face.score = float(face_score)
+            hypothesis_face.id = "face"  # Label for face detection
+            detection.results.append(hypothesis_face)
+
+            # Fill gesture_score in results
+            hypothesis_gesture = ObjectHypothesisWithPose()
+            hypothesis_gesture.score = float(gesture_score)
+            hypothesis_gesture.id = str(gesture_type)  # Label for gesture type
+            detection.results.append(hypothesis_gesture)
+
+            detection_array_msg.detections.append(detection)
+            self.detection_pub.publish(detection_array_msg)  # Publish the message
 
 
 def main(args=None):

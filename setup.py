@@ -23,8 +23,11 @@ setup(
     ],
     install_requires=[
         'setuptools',
-        'DFRobot_GestureFaceDetection',
-        'DFRobot_RTU'],
+        'serial',
+        'smbus2',
+        #'DFRobot_GestureFaceDetection',
+        #'DFRobot_RTU'
+        ],
     zip_safe=True,
     maintainer='Sergei Grichine',
     maintainer_email='slg@quakemap.com',
