@@ -120,7 +120,7 @@ class FaceGestureSensorNode(Node):
             header.frame_id = "face_gesture_sensor"  # or another appropriate frame
             detection_array_msg.header = header
 
-            center = Pose2D(x=face_x, y=face_y, theta=0.0)  # Assuming theta is not used for 2D detection
+            center = Pose2D(x=float(face_x), y=float(face_y), theta=0.0)  # Assuming theta is not used for 2D detection
             face_bbox = BoundingBox2D(center=center, size_x=10.0, size_y=10.0)
             detection = Detection2D(bbox=face_bbox)
 
