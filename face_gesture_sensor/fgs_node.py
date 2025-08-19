@@ -119,10 +119,10 @@ class FaceGestureSensorNode(Node):
 
         num_faces = gfd.get_face_number()
 
-        self.get_logger().info("Number of faces detected: {}".format(num_faces))
-
         # Check if any faces are detected
         if num_faces > 0:
+            self.get_logger().info("Number of faces detected: {}".format(num_faces))
+
             # Get face score and position coordinates
             face_score = gfd.get_face_score()
             face_x = gfd.get_face_location_x()
@@ -164,7 +164,8 @@ class FaceGestureSensorNode(Node):
                 detection.results.append(hypothesis_gesture)
 
             detection_array_msg.detections.append(detection)
-            self.detection_pub.publish(detection_array_msg)  # Publish the message
+            if rclpy.ok():
+                self.detection_pub.publish(detection_array_msg)  # Publish the message
 
     def print_time(self):
         self.print_time_counter += 1
