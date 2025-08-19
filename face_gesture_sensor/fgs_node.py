@@ -37,6 +37,7 @@ class FaceGestureSensorNode(Node):
         self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
         self.detection_pub = self.create_publisher(Detection2DArray, 'face_gesture_detections', 10)  # Add publisher
         self.print_time_counter = 0  # Add a counter for print_time()
+        self.start_time = datetime.now()  # Store program start time
         
     def setup(self):
         """
@@ -50,6 +51,8 @@ class FaceGestureSensorNode(Node):
             self.get_logger().error("Communication with device failed, please check connection")
             rclpy.shutdown()
             return
+        
+        self.setup_timer.cancel()  # Cancel the timer after first call
 
         '''
         # Set face detection score threshold (0~100)
@@ -151,8 +154,10 @@ class FaceGestureSensorNode(Node):
         if self.print_time_counter % 10 == 0:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
-            self.get_logger().info("Current Time: {}".format(current_time))
-
+            elapsed = now - self.start_time
+            elapsed_str = str(elapsed).split('.')[0]  # Format as H:M:S
+            self.get_logger().info(f"Current Time: {current_time} | Elapsed: {elapsed_str}")
+            
     def destroy_node(self):
         self.get_logger().info("Destroying node...")
         #gfd.destroy()
@@ -161,9 +166,13 @@ class FaceGestureSensorNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = FaceGestureSensorNode()
-    rclpy.spin(node)  # Keep the node alive and processing callbacks
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.spin(node)  # Keep the node alive and processing callbacks
+    except KeyboardInterrupt:
+        node.get_logger().info("Keyboard interrupt received. Shutting down node.")
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
