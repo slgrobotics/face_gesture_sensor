@@ -29,12 +29,29 @@ else:
 
 
 class FaceGestureSensorNode(Node):
+
+    gesture_names = {
+        1: "LIKE",
+        2: "OK",
+        3: "STOP",
+        4: "YES",
+        5: "SIX"
+    }
+
+    gesture_names_long = {
+        1: "1 = LIKE (blue)",
+        2: "2 = OK (green)",
+        3: "3 = STOP (red)",
+        4: "4 = YES (yellow)",
+        5: "5 = SIX (purple)"
+    }
+
     def __init__(self):
         super().__init__('face_gesture_sensor_node')  # Initialize the Node with a unique name
         self.sensor_ready = False  # Flag to indicate sensor is initialized
         self.get_logger().info('FaceGestureSensorNode node has been started!')
         self.setup_timer = self.create_timer(5.0, self.setup)  # Call setup after 5 seconds
-        self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
+        self.loop_timer = self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
         self.detection_pub = self.create_publisher(Detection2DArray, 'face_gesture_detections', 10)  # Add publisher
         self.print_time_counter = 0  # Add a counter for print_time()
         self.start_time = datetime.now()  # Store program start time
@@ -100,8 +117,12 @@ class FaceGestureSensorNode(Node):
 
         self.print_time()
 
+        num_faces = gfd.get_face_number()
+
+        self.get_logger().info("Number of faces detected: {}".format(num_faces))
+
         # Check if any faces are detected
-        if gfd.get_face_number() > 0:
+        if num_faces > 0:
             # Get face score and position coordinates
             face_score = gfd.get_face_score()
             face_x = gfd.get_face_location_x()
@@ -117,8 +138,8 @@ class FaceGestureSensorNode(Node):
             # - 5: SIX   - purple
             gesture_type = gfd.get_gesture_type()
             gesture_score = gfd.get_gesture_score()
-            
-            self.get_logger().info("Detect gesture {}, score = {}".format(gesture_type, gesture_score))
+
+            self.print_gesture(gesture_type, gesture_score)
 
             detection_array_msg = Detection2DArray()
             header = Header()
@@ -139,12 +160,13 @@ class FaceGestureSensorNode(Node):
             hypothesis_face.hypothesis.class_id = "face"
             detection.results.append(hypothesis_face)
 
-            # Fill gesture_score in results
-            hypothesis_gesture = ObjectHypothesisWithPose()
-            hypothesis_gesture.hypothesis = ObjectHypothesis()
-            hypothesis_gesture.hypothesis.score = float(gesture_score)
-            hypothesis_gesture.hypothesis.class_id = str(gesture_type)
-            detection.results.append(hypothesis_gesture)
+            # Fill gesture_score in results, if any gestures detected:
+            if gesture_type > 0 and gesture_score > 0:
+                hypothesis_gesture = ObjectHypothesisWithPose()
+                hypothesis_gesture.hypothesis = ObjectHypothesis()
+                hypothesis_gesture.hypothesis.score = float(gesture_score)
+                hypothesis_gesture.hypothesis.class_id = str(gesture_type)
+                detection.results.append(hypothesis_gesture)
 
             detection_array_msg.detections.append(detection)
             self.detection_pub.publish(detection_array_msg)  # Publish the message
@@ -158,7 +180,12 @@ class FaceGestureSensorNode(Node):
             elapsed_str = str(elapsed).split('.')[0]  # Format as H:M:S
             self.get_logger().info(f"Current Time: {current_time} | Elapsed: {elapsed_str}")
             
+    def print_gesture(self, gesture_type, gesture_score):
+        gesture_str = self.gesture_names_long.get(gesture_type, "Unknown")
+        self.get_logger().info(f"Gesture: {gesture_str}, Score: {gesture_score}")
+        
     def destroy_node(self):
+        self.loop_timer.cancel()  # Cancel the loop timer
         self.get_logger().info("Destroying node...")
         #gfd.destroy()
         super().destroy_node()
