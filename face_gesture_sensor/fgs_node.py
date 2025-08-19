@@ -5,8 +5,7 @@ from rclpy.timer import Timer
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
 
 from std_msgs.msg import Header
-from geometry_msgs.msg import Point
-from vision_msgs.msg import Pose2D, BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
+from vision_msgs.msg import Point2D, Pose2D, BoundingBox2D, Detection2D, Detection2DArray, ObjectHypothesisWithPose, ObjectHypothesis
 
 #
 # ros2 run face_gesture_sensor fgs_node
@@ -121,7 +120,7 @@ class FaceGestureSensorNode(Node):
             detection_array_msg.header = header
 
             center = Pose2D()
-            center.position = Point(x=float(face_x), y=float(face_y), z=0.0)
+            center.position = Point2D(x=float(face_x), y=float(face_y))
             center.theta = 0.0  # Assuming theta is not used for 2D detection
             face_bbox = BoundingBox2D(center=center, size_x=10.0, size_y=10.0)
             detection = Detection2D(bbox=face_bbox)
