@@ -46,6 +46,9 @@ Arduino library:
 - https://github.com/DFRobot/DFRobot_RTU
 
 #### Playing with [Python samples](https://github.com/DFRobot/DFRobot_GestureFaceDetection/tree/master/python/raspberrypi)
+
+<img width="337" height="440" alt="Screenshot from 2025-11-11 22-10-15" src="https://github.com/user-attachments/assets/e65cba96-ebc3-4dd5-a933-f6cb13ba6c4d" />
+
 ```
 mkdir ~/gesture
 cd ~/gesture
