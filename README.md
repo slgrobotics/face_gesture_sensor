@@ -1,3 +1,5 @@
+Visit my [main project Wiki](https://github.com/slgrobotics/articubot_one/wiki) for more info.
+
 ## A ROS2 Node for DFRobot AI Gesture and Face Detection Sensor 
 
 Based on [DFRobot Python code](https://github.com/DFRobot/DFRobot_GestureFaceDetection/tree/master/python/raspberrypi)
