@@ -153,7 +153,9 @@ class PerceptionAdapter(Node):
             self.face_pub.publish(String(data=f"FACE {distance}"))
 
             # Play greeting sound, once per appearance
-            subprocess.Popen(['aplay', self.face_sound])
+            #subprocess.Popen(['aplay', self.face_sound])
+            # Or, use "flite": sudo apt install flite
+            subprocess.Popen(['flite', '-t', 'Hello, I see you!'])
 
             self.state = 'tracking'
 
