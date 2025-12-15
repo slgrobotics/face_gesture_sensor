@@ -147,7 +147,7 @@ class PerceptionAdapter(Node):
 
         distance_px = face_x - self.camera_center_x # positive turn when you are on robot's left
 
-        self.face_pub.publish(Bool(True)) # Face detected event for BT, publish continuously while face is in view
+        self.face_pub.publish(Bool(data=True)) # Face detected event for BT, publish continuously while face is in view
 
         angle_factor = pi / (6 * 320)   # Factor to convert pixel error to angle error (assume 30 degrees = 320 pixels)
         angle_error = (face_x - self.camera_center_x) * angle_factor
