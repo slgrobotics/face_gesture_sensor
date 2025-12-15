@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from math import pi
 import rclpy
 from rclpy.node import Node
 
@@ -59,11 +60,15 @@ class PerceptionAdapter(Node):
         # ---- state machine ----
         self.state = 'idle'  # 'idle' or 'tracking'
         self.last_face_time = 0.0
-        self.last_published_x = 0.0
+        self.last_traced_x = 0.0
 
         # ---- publishers (BT inputs) ----
         self.face_pub = self.create_publisher(
-            String, '/bt/face_detected', 10  # Change to String
+            Bool, '/bt/face_detected', 10
+        )
+
+        self.face_yaw_err_pub = self.create_publisher(
+            Float32, '/bt/face_yaw_error', 10
         )
 
         self.gesture_pub = self.create_publisher(
@@ -127,7 +132,7 @@ class PerceptionAdapter(Node):
         if self.state == 'tracking' and (now - self.last_face_time) > self.face_cooldown:
             self.get_logger().info("Face disappeared, resetting state to idle")
             self.state = 'idle'
-            self.last_published_x = 0.0  # Reset
+            self.last_traced_x = 0.0  # Reset
 
     # --------------------------------------------------
     # Semantic handlers
@@ -140,17 +145,24 @@ class PerceptionAdapter(Node):
         now = time.time()
         self.last_face_time = now  # Update last seen time
 
+        distance_px = face_x - self.camera_center_x # positive turn when you are on robot's left
+
+        self.face_pub.publish(Bool(True)) # Face detected event for BT, publish continuously while face is in view
+
+        angle_factor = pi / (6 * 320)   # Factor to convert pixel error to angle error (assume 30 degrees = 320 pixels)
+        angle_error = (face_x - self.camera_center_x) * angle_factor
+
+        self.face_yaw_err_pub.publish(Float32(data=float(angle_error))) # Where to turn for BT
+
         # State Machine:
-        #    'idle': No face. On detection, greet, publish, and switch to 'tracking'.
-        #    'tracking': Face in view. Publish only on significant x-change.
+        #    'idle': No face. On detection, greet and switch to 'tracking'.
+        #    'tracking': Face in view. Trace only on significant x-change.
         # State resets to 'idle' in "_ticker_callback()" if no detection for face_cooldown_sec.
 
         if self.state == 'idle':
             # First face detection: greet and start tracking
-            self.last_published_x = face_x # expect 0...640
-            distance = abs(face_x - self.camera_center_x) # positive turn when you are on the robot's left
-            self.get_logger().info(f"Face detected (first time) at x={face_x}, distance: {distance}")
-            self.face_pub.publish(String(data=f"FACE {distance}"))
+            self.last_traced_x = face_x # expect 0...640
+            self.get_logger().info(f"Face detected (first time) at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
 
             # Play greeting sound, once per appearance
             #subprocess.Popen(['aplay', self.face_sound])
@@ -161,11 +173,9 @@ class PerceptionAdapter(Node):
 
         elif self.state == 'tracking':
             # Check if x changed enough to publish
-            if abs(face_x - self.last_published_x) > self.face_x_threshold:
-                self.last_published_x = face_x
-                distance = abs(face_x - self.camera_center_x)
-                self.get_logger().info(f"Face moved, publishing at x={face_x}, distance: {distance}")
-                self.face_pub.publish(String(data=f"FACE {distance}"))
+            if abs(face_x - self.last_traced_x) > self.face_x_threshold:
+                self.last_traced_x = face_x
+                self.get_logger().info(f"Face moved, x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
 
 
     def _handle_like(self):
@@ -176,30 +186,19 @@ class PerceptionAdapter(Node):
 
     def _handle_ok(self):
         self.get_logger().info("Gesture: OK")
-
-        # Notify BT
         self.gesture_pub.publish(String(data='OK'))
-
-        # Request forward motion for 1 second
-        self.forward_pub.publish(Float32(data=1.0))
 
     def _handle_stop(self):
         self.get_logger().info("Gesture: STOP")
-
-        # Notify BT
         self.gesture_pub.publish(String(data='STOP'))
 
     def _handle_yes(self):
         self.get_logger().info("Gesture: YES")
-        # Notify BT
         self.gesture_pub.publish(String(data='YES'))
-        # Add custom action if needed
 
     def _handle_six(self):
         self.get_logger().info("Gesture: SIX")
-        # Notify BT
         self.gesture_pub.publish(String(data='SIX'))
-        # Add custom action if needed
 
 
 def main(args=None):
