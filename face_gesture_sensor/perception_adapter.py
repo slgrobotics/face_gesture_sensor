@@ -45,7 +45,7 @@ class PerceptionAdapter(Node):
         self.declare_parameter('face_sound', 'my_face.wav')
         self.declare_parameter('min_confidence', 0.6)
         self.declare_parameter('face_cooldown_sec', 3.0)
-        self.declare_parameter('camera_center_x', 0.0)
+        self.declare_parameter('camera_center_x', 320.0)  # Assuming 640px width sensor camera
         self.declare_parameter('face_x_threshold', 10.0)  # New: Threshold for x change to publish
         self.declare_parameter('ticker_interval_sec', 0.5)  # New: Ticker interval
 
@@ -108,15 +108,15 @@ class PerceptionAdapter(Node):
                     # Extract face position from bbox
                     face_x = detection.bbox.center.position.x
                     self._handle_face(face_x)
-                elif label == 'LIKE':
+                elif 'LIKE' in label: # "1 = LIKE (blue)"
                     self._handle_like()
-                elif label == 'OK':
+                elif 'OK' in label:
                     self._handle_ok()
-                elif label == 'STOP':
+                elif 'STOP' in label:
                     self._handle_stop()
-                elif label == 'YES':
+                elif 'YES' in label:
                     self._handle_yes()
-                elif label == 'SIX':
+                elif 'SIX' in label:
                     self._handle_six()
 
     def _ticker_callback(self):
@@ -147,8 +147,8 @@ class PerceptionAdapter(Node):
 
         if self.state == 'idle':
             # First face detection: greet and start tracking
-            self.last_published_x = face_x
-            distance = abs(face_x - self.camera_center_x)
+            self.last_published_x = face_x # expect 0...640
+            distance = abs(face_x - self.camera_center_x) # positive turn when you are on the robot's left
             self.get_logger().info(f"Face detected (first time) at x={face_x}, distance: {distance}")
             self.face_pub.publish(String(data=f"FACE {distance}"))
 
