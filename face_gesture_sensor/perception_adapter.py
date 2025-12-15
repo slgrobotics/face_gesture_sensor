@@ -75,10 +75,6 @@ class PerceptionAdapter(Node):
             String, '/bt/gesture_command', 10
         )
 
-        self.forward_pub = self.create_publisher(
-            Float32, '/bt/forward_request', 10
-        )
-
         # ---- subscription ----
         self.sub = self.create_subscription(
             Detection2DArray,
