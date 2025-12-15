@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 
-from vision_msgs.msg import Detection2DArray, ObjectHypothesisWithPose
+from vision_msgs.msg import Detection2DArray
 from std_msgs.msg import Bool, String, Float32
 
 import subprocess
@@ -45,14 +45,21 @@ class PerceptionAdapter(Node):
         self.declare_parameter('face_sound', 'my_face.wav')
         self.declare_parameter('min_confidence', 0.6)
         self.declare_parameter('face_cooldown_sec', 3.0)
-        self.declare_parameter('camera_center_x', 0.0)  # Add parameter for camera center (default 0)
+        self.declare_parameter('camera_center_x', 0.0)
+        self.declare_parameter('face_x_threshold', 10.0)  # New: Threshold for x change to publish
+        self.declare_parameter('ticker_interval_sec', 0.5)  # New: Ticker interval
 
         self.face_sound = self.get_parameter('face_sound').value
         self.min_conf = self.get_parameter('min_confidence').value
         self.face_cooldown = self.get_parameter('face_cooldown_sec').value
-        self.camera_center_x = self.get_parameter('camera_center_x').value  # Camera center x-coordinate
+        self.camera_center_x = self.get_parameter('camera_center_x').value
+        self.face_x_threshold = self.get_parameter('face_x_threshold').value
+        self.ticker_interval = self.get_parameter('ticker_interval_sec').value
 
-        self._last_face_time = 0.0
+        # ---- state machine ----
+        self.state = 'idle'  # 'idle' or 'tracking'
+        self.last_face_time = 0.0
+        self.last_published_x = 0.0
 
         # ---- publishers (BT inputs) ----
         self.face_pub = self.create_publisher(
@@ -74,6 +81,9 @@ class PerceptionAdapter(Node):
             self._on_detection,
             10
         )
+
+        # ---- ticker timer ----
+        self.ticker_timer = self.create_timer(self.ticker_interval, self._ticker_callback)
 
         self.get_logger().info("Perception Adapter ready")
 
@@ -109,6 +119,16 @@ class PerceptionAdapter(Node):
                 elif label == 'SIX':
                     self._handle_six()
 
+    def _ticker_callback(self):
+        """
+        Periodic check: If face not detected for face_cooldown_sec, reset to idle.
+        """
+        now = time.time()
+        if self.state == 'tracking' and (now - self.last_face_time) > self.face_cooldown:
+            self.get_logger().info("Face disappeared, resetting state to idle")
+            self.state = 'idle'
+            self.last_published_x = 0.0  # Reset
+
     # --------------------------------------------------
     # Semantic handlers
     #
@@ -118,21 +138,33 @@ class PerceptionAdapter(Node):
 
     def _handle_face(self, face_x):
         now = time.time()
-        if now - self._last_face_time < self.face_cooldown:
-            return
+        self.last_face_time = now  # Update last seen time
 
-        self._last_face_time = now
+        # State Machine:
+        #    'idle': No face. On detection, greet, publish, and switch to 'tracking'.
+        #    'tracking': Face in view. Publish only on significant x-change.
+        # State resets to 'idle' in "_ticker_callback()" if no detection for face_cooldown_sec.
 
-        # Calculate horizontal distance from camera center
-        distance = abs(face_x - self.camera_center_x)
+        if self.state == 'idle':
+            # First face detection: greet and start tracking
+            self.last_published_x = face_x
+            distance = abs(face_x - self.camera_center_x)
+            self.get_logger().info(f"Face detected (first time) at x={face_x}, distance: {distance}")
+            self.face_pub.publish(String(data=f"FACE {distance}"))
 
-        self.get_logger().info(f"Face detected at x={face_x}, distance from center: {distance}")
+            # Play greeting sound, once per appearance
+            subprocess.Popen(['aplay', self.face_sound])
 
-        # Notify BT with String message
-        self.face_pub.publish(String(data=f"FACE {distance}"))
+            self.state = 'tracking'
 
-        # Play sound (non-blocking)
-        subprocess.Popen(['aplay', self.face_sound])
+        elif self.state == 'tracking':
+            # Check if x changed enough to publish
+            if abs(face_x - self.last_published_x) > self.face_x_threshold:
+                self.last_published_x = face_x
+                distance = abs(face_x - self.camera_center_x)
+                self.get_logger().info(f"Face moved, publishing at x={face_x}, distance: {distance}")
+                self.face_pub.publish(String(data=f"FACE {distance}"))
+
 
     def _handle_like(self):
         self.get_logger().info("Gesture: LIKE")
