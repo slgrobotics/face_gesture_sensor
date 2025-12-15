@@ -45,16 +45,18 @@ class PerceptionAdapter(Node):
         self.declare_parameter('face_sound', 'my_face.wav')
         self.declare_parameter('min_confidence', 0.6)
         self.declare_parameter('face_cooldown_sec', 3.0)
+        self.declare_parameter('camera_center_x', 0.0)  # Add parameter for camera center (default 0)
 
         self.face_sound = self.get_parameter('face_sound').value
         self.min_conf = self.get_parameter('min_confidence').value
         self.face_cooldown = self.get_parameter('face_cooldown_sec').value
+        self.camera_center_x = self.get_parameter('camera_center_x').value  # Camera center x-coordinate
 
         self._last_face_time = 0.0
 
         # ---- publishers (BT inputs) ----
         self.face_pub = self.create_publisher(
-            Bool, '/bt/face_detected', 10
+            String, '/bt/face_detected', 10  # Change to String
         )
 
         self.gesture_pub = self.create_publisher(
@@ -93,7 +95,9 @@ class PerceptionAdapter(Node):
                     continue
 
                 if label == 'FACE':
-                    self._handle_face()
+                    # Extract face position from bbox
+                    face_x = detection.bbox.center.position.x
+                    self._handle_face(face_x)
                 elif label == 'LIKE':
                     self._handle_like()
                 elif label == 'OK':
@@ -112,17 +116,20 @@ class PerceptionAdapter(Node):
     # They abstract away low-level details and publish high-level intent messages.
     # --------------------------------------------------
 
-    def _handle_face(self):
+    def _handle_face(self, face_x):
         now = time.time()
         if now - self._last_face_time < self.face_cooldown:
             return
 
         self._last_face_time = now
 
-        self.get_logger().info("Face detected")
+        # Calculate horizontal distance from camera center
+        distance = abs(face_x - self.camera_center_x)
 
-        # Notify BT
-        self.face_pub.publish(Bool(data=True))
+        self.get_logger().info(f"Face detected at x={face_x}, distance from center: {distance}")
+
+        # Notify BT with String message
+        self.face_pub.publish(String(data=f"FACE {distance}"))
 
         # Play sound (non-blocking)
         subprocess.Popen(['aplay', self.face_sound])
