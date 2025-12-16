@@ -31,6 +31,9 @@ colcon build
 Run the node:
 ```
 ros2 run face_gesture_sensor fgs_node
+  or
+ros2 launch face_gesture_sensor face_gesture_sensor.launch.py
+
 ```
 ### Nav2 Behavior Trees integration
 

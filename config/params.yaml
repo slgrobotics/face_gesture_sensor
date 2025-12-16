@@ -1,0 +1,8 @@
+perception_adapter:
+  ros__parameters:
+    face_sound: "my_face.wav"
+    min_confidence: 0.6
+    face_cooldown_sec: 3.0
+    camera_center_x: 320.0
+    face_x_threshold: 10.0
+    ticker_interval_sec: 0.5
