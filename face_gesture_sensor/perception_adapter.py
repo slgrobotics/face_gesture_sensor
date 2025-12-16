@@ -61,6 +61,7 @@ class PerceptionAdapter(Node):
         self.state = 'idle'  # 'idle' or 'tracking'
         self.last_face_time = 0.0
         self.last_traced_x = 0.0
+        self.last_said = ''
 
         # ---- publishers (BT inputs) ----
         self.face_pub = self.create_publisher(
@@ -130,6 +131,14 @@ class PerceptionAdapter(Node):
             self.state = 'idle'
             self.last_traced_x = 0.0  # Reset
 
+    def _say_something(self, text):
+        """
+        Use flite to say something.
+        """
+        if self.last_said != text:
+            subprocess.Popen(['flite', '-t', text])
+        self.last_said = text
+
     # --------------------------------------------------
     # Semantic handlers
     #
@@ -163,7 +172,7 @@ class PerceptionAdapter(Node):
             # Play greeting sound, once per appearance
             #subprocess.Popen(['aplay', self.face_sound])
             # Or, use "flite": sudo apt install flite
-            subprocess.Popen(['flite', '-t', 'Hello, I see you!'])
+            self._say_something("I see you")
 
             self.state = 'tracking'
 
@@ -178,23 +187,28 @@ class PerceptionAdapter(Node):
         self.get_logger().info("Gesture: LIKE")
         # Notify BT
         self.gesture_pub.publish(String(data='LIKE'))
+        self._say_something("Like")
         # Add custom action if needed (e.g., play sound or trigger motion)
 
     def _handle_ok(self):
         self.get_logger().info("Gesture: OK")
         self.gesture_pub.publish(String(data='OK'))
+        self._say_something("Okay")
 
     def _handle_stop(self):
         self.get_logger().info("Gesture: STOP")
         self.gesture_pub.publish(String(data='STOP'))
+        self._say_something("Stop")
 
     def _handle_yes(self):
         self.get_logger().info("Gesture: YES")
         self.gesture_pub.publish(String(data='YES'))
+        self._say_something("Yes")
 
     def _handle_six(self):
         self.get_logger().info("Gesture: SIX")
         self.gesture_pub.publish(String(data='SIX'))
+        self._say_something("Six")
 
 
 def main(args=None):
