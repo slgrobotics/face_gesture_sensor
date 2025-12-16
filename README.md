@@ -30,6 +30,8 @@ colcon build
 
 Run the node:
 ```
+source ~/gesture_ws/install/setup.bash
+
 ros2 run face_gesture_sensor fgs_node
   or
 ros2 launch face_gesture_sensor face_gesture_sensor.launch.py
