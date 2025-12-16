@@ -32,6 +32,10 @@ Run the node:
 ```
 ros2 run face_gesture_sensor fgs_node
 ```
+### Nav2 Behavior Trees integration
+
+Please refer to [main project Wiki](https://github.com/slgrobotics/articubot_one/wiki/Behavior-Tree-for-Gesture-and-Face-Detection-Sensor)
+
 ------------------
 
 ### Useful links and notes
@@ -46,6 +50,8 @@ Wiki:
 Arduino library:
 - https://github.com/DFRobot/DFRobot_GestureFaceDetection  <- installs with Arduino IDE Manager, with RTU
 - https://github.com/DFRobot/DFRobot_RTU
+
+------------------
 
 #### Playing with [Python samples](https://github.com/DFRobot/DFRobot_GestureFaceDetection/tree/master/python/raspberrypi)
 
