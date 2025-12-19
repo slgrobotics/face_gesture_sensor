@@ -6,6 +6,7 @@ from rclpy.node import Node
 
 from vision_msgs.msg import Detection2DArray
 from std_msgs.msg import Bool, String, Float32
+from sensor_msgs.msg import Illuminance
 
 import subprocess
 import time
@@ -58,19 +59,26 @@ class PerceptionAdapter(Node):
         # ---- state machine ----
         self.state = 'idle'  # 'idle' or 'tracking'
         self.last_face_time = 0.0
+        self.last_gesture = ''
+        self.last_gesture_time = 0.0
         self.last_said = ''
 
-        # ---- publishers (BT inputs) ----
+        # ---- publishers (Behavior Tree inputs) ----
+        self.face_gesture_detected_pub = self.create_publisher(
+            Illuminance, '/bt/face_gesture_detect', 10  # hack: using Illuminance for boolean, string, float32 and timestamp
+        )
+
+        # ---- publishers (anybody's inputs) ----
         self.face_detected_pub = self.create_publisher(
-            Bool, '/bt/face_detected', 10
+            Bool, '/fgs/face_detected', 10
         )
 
         self.face_yaw_err_pub = self.create_publisher(
-            Float32, '/bt/face_yaw_error', 10
+            Float32, '/fgs/face_yaw_error', 10
         )
 
         self.gesture_pub = self.create_publisher(
-            String, '/bt/gesture_command', 10
+            String, '/fgs/gesture_command', 10
         )
 
         # ---- subscription ----
@@ -135,6 +143,20 @@ class PerceptionAdapter(Node):
             subprocess.Popen(['flite', '-t', text])
         self.last_said = text
 
+    def _pub_to_bt(self, face_detected: bool, gesture: str, angle_error: float):
+        """
+        Hack: using Illuminance message to send combo info, because we need a time-stamped message in BT plugins.
+        Publish to Behavior Tree topic.
+        """
+        combo_msg = Illuminance()
+        combo_msg.header.stamp = self.get_clock().now().to_msg()
+        combo_msg.header.frame_id = gesture  # Use frame_id to send gesture as string
+        combo_msg.illuminance = 1.0 if face_detected else 0.0
+        combo_msg.variance = angle_error  # Use variance field to send angle error
+
+        self.face_gesture_detected_pub.publish(combo_msg)
+
+
     # --------------------------------------------------
     # Semantic handlers
     #
@@ -152,9 +174,14 @@ class PerceptionAdapter(Node):
         angle_factor = pi / (6 * 320)   # Factor to convert pixel error to angle error (assume FOV +-30 degrees = +-320 pixels)
         angle_error = distance_px * angle_factor
 
-        self.face_detected_pub.publish(Bool(data=True)) # Face detected event for BT, publish continuously while face is in view
+        self.face_detected_pub.publish(Bool(data=True)) # Face detected event, publish continuously while face is in view
 
-        self.face_yaw_err_pub.publish(Float32(data=float(angle_error))) # Where to turn for BT, publish continuously while face is in view
+        self.face_yaw_err_pub.publish(Float32(data=float(angle_error))) # Where to turn, publish continuously while face is in view
+
+        # Face gesture detected event for BT, publish continuously while face is in view
+        # Hack: using Illuminance message to send combo info
+        bt_gesture = self.last_gesture if (now - self.last_gesture_time) < 1.0 else ''
+        self._pub_to_bt(face_detected=True, gesture=bt_gesture, angle_error=float(angle_error))
 
         # State Machine:
         #    'idle': No face. On detection, greet and switch to 'tracking'.
@@ -181,27 +208,43 @@ class PerceptionAdapter(Node):
     def _handle_like(self):
         self.get_logger().info("Gesture: LIKE")
         # Notify BT
+        self.last_gesture = 'LIKE'
+        now = time.time()
+        self.last_gesture_time = now  # Update last gesture time
+        # Notify others
         self.gesture_pub.publish(String(data='LIKE'))
         self._say_something("Like")
         # Add custom action if needed (e.g., play sound or trigger motion)
 
     def _handle_ok(self):
         self.get_logger().info("Gesture: OK")
+        self.last_gesture = 'OK'
+        now = time.time()
+        self.last_gesture_time = now  # Update last gesture time
         self.gesture_pub.publish(String(data='OK'))
         self._say_something("Okay")
 
     def _handle_stop(self):
         self.get_logger().info("Gesture: STOP")
+        self.last_gesture = 'STOP'
+        now = time.time()
+        self.last_gesture_time = now  # Update last gesture time
         self.gesture_pub.publish(String(data='STOP'))
         self._say_something("Stop")
 
     def _handle_yes(self):
         self.get_logger().info("Gesture: YES")
+        self.last_gesture = 'YES'
+        now = time.time()
+        self.last_gesture_time = now  # Update last gesture time
         self.gesture_pub.publish(String(data='YES'))
         self._say_something("Yes")
 
     def _handle_six(self):
         self.get_logger().info("Gesture: SIX")
+        self.last_gesture = 'SIX'
+        now = time.time()
+        self.last_gesture_time = now  # Update last gesture time
         self.gesture_pub.publish(String(data='SIX'))
         self._say_something("Six")
 
