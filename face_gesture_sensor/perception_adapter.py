@@ -47,24 +47,21 @@ class PerceptionAdapter(Node):
         self.declare_parameter('min_confidence', 0.6)
         self.declare_parameter('face_cooldown_sec', 3.0)
         self.declare_parameter('camera_center_x', 320.0)  # Assuming 640px width sensor camera
-        self.declare_parameter('face_x_threshold', 10.0)  # New: Threshold for x change to publish
-        self.declare_parameter('ticker_interval_sec', 0.5)  # New: Ticker interval
+        self.declare_parameter('ticker_interval_sec', 0.5)  # New: Ticker interval (defines rate or publishing all messages)
 
         self.face_sound = self.get_parameter('face_sound').value
         self.min_conf = self.get_parameter('min_confidence').value
         self.face_cooldown = self.get_parameter('face_cooldown_sec').value
         self.camera_center_x = self.get_parameter('camera_center_x').value
-        self.face_x_threshold = self.get_parameter('face_x_threshold').value
         self.ticker_interval = self.get_parameter('ticker_interval_sec').value
 
         # ---- state machine ----
         self.state = 'idle'  # 'idle' or 'tracking'
         self.last_face_time = 0.0
-        self.last_traced_x = 0.0
         self.last_said = ''
 
         # ---- publishers (BT inputs) ----
-        self.face_pub = self.create_publisher(
+        self.face_detected_pub = self.create_publisher(
             Bool, '/bt/face_detected', 10
         )
 
@@ -129,7 +126,6 @@ class PerceptionAdapter(Node):
         if self.state == 'tracking' and (now - self.last_face_time) > self.face_cooldown:
             self.get_logger().info("Face disappeared, resetting state to idle")
             self.state = 'idle'
-            self.last_traced_x = 0.0  # Reset
 
     def _say_something(self, text):
         """
@@ -150,14 +146,15 @@ class PerceptionAdapter(Node):
         now = time.time()
         self.last_face_time = now  # Update last seen time
 
+        # expect face_x in range 0...640, camera center at 320
         distance_px = face_x - self.camera_center_x # positive turn when you are on robot's left
 
-        self.face_pub.publish(Bool(data=True)) # Face detected event for BT, publish continuously while face is in view
+        angle_factor = pi / (6 * 320)   # Factor to convert pixel error to angle error (assume FOV +-30 degrees = +-320 pixels)
+        angle_error = distance_px * angle_factor
 
-        angle_factor = pi / (6 * 320)   # Factor to convert pixel error to angle error (assume 30 degrees = 320 pixels)
-        angle_error = (face_x - self.camera_center_x) * angle_factor
+        self.face_detected_pub.publish(Bool(data=True)) # Face detected event for BT, publish continuously while face is in view
 
-        self.face_yaw_err_pub.publish(Float32(data=float(angle_error))) # Where to turn for BT
+        self.face_yaw_err_pub.publish(Float32(data=float(angle_error))) # Where to turn for BT, publish continuously while face is in view
 
         # State Machine:
         #    'idle': No face. On detection, greet and switch to 'tracking'.
@@ -166,7 +163,7 @@ class PerceptionAdapter(Node):
 
         if self.state == 'idle':
             # First face detection: greet and start tracking
-            self.last_traced_x = face_x # expect 0...640
+            # expect face_x in range 0...640
             self.get_logger().info(f"Face detected (first time) at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
 
             # Play greeting sound, once per appearance
@@ -177,10 +174,8 @@ class PerceptionAdapter(Node):
             self.state = 'tracking'
 
         elif self.state == 'tracking':
-            # Check if x changed enough to publish
-            if abs(face_x - self.last_traced_x) > self.face_x_threshold:
-                self.last_traced_x = face_x
-                self.get_logger().info(f"Face moved, x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
+            # continuously publish face position deviation from the center of view, in pixels
+            self.get_logger().info(f"Face at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
 
 
     def _handle_like(self):
