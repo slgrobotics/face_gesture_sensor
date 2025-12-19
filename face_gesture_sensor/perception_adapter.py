@@ -44,13 +44,15 @@ class PerceptionAdapter(Node):
         super().__init__('perception_adapter')
 
         # ---- parameters ----
-        self.declare_parameter('face_sound', 'my_face.wav')
+        self.declare_parameter('face_detected_sound', '')
+        self.declare_parameter('face_detected_text', '')
         self.declare_parameter('min_confidence', 0.6)
         self.declare_parameter('face_cooldown_sec', 3.0)
         self.declare_parameter('camera_center_x', 320.0)  # Assuming 640px width sensor camera
-        self.declare_parameter('ticker_interval_sec', 0.5)  # New: Ticker interval (defines rate or publishing all messages)
+        self.declare_parameter('ticker_interval_sec', 0.1)  # New: Ticker interval (defines rate or publishing all messages)
 
-        self.face_sound = self.get_parameter('face_sound').value
+        self.face_detected_sound = self.get_parameter('face_detected_sound').value
+        self.face_detected_text = self.get_parameter('face_detected_text').value
         self.min_conf = self.get_parameter('min_confidence').value
         self.face_cooldown = self.get_parameter('face_cooldown_sec').value
         self.camera_center_x = self.get_parameter('camera_center_x').value
@@ -193,10 +195,13 @@ class PerceptionAdapter(Node):
             # expect face_x in range 0...640
             self.get_logger().info(f"Face detected (first time) at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
 
-            # Play greeting sound, once per appearance
-            #subprocess.Popen(['aplay', self.face_sound])
-            # Or, use "flite": sudo apt install flite
-            self._say_something("I see you")
+            if(self.face_detected_sound != ''):
+                # Play greeting sound, once per appearance
+                subprocess.Popen(['aplay', self.face_detected_sound])
+
+            if(self.face_detected_text != ''):
+                # Or, use "flite": sudo apt install flite
+                self._say_something(self.face_detected_text)
 
             self.state = 'tracking'
 

@@ -49,11 +49,25 @@ class FaceGestureSensorNode(Node):
 
     def __init__(self):
         super().__init__('face_gesture_sensor_node')  # Initialize the Node with a unique name
-        self.sensor_ready = False  # Flag to indicate sensor is initialized
-        self.get_logger().info('FaceGestureSensorNode node has been started!')
+
+        self.declare_parameter('ticker_interval_sec', 0.1)     # Ticker interval (defines rate or publishing all messages)
+        self.declare_parameter('face_detect_threshold', 60)    # 0..100
+        self.declare_parameter('gesture_detect_threshold', 60) # 0..100
+        self.declare_parameter('gesture_detect_range', 100)    # 0..100
+
+        self.ticker_interval_sec = self.get_parameter('ticker_interval_sec').value  # Get the ticker interval parameter
+        self.face_detect_threshold = self.get_parameter('face_detect_threshold').value
+        self.gesture_detect_threshold = self.get_parameter('gesture_detect_threshold').value
+        self.gesture_detect_range = self.get_parameter('gesture_detect_range').value
+
+        self.get_logger().info('Face Gesture Sensor node has been started!')
+
         self.setup_timer = self.create_timer(5.0, self.setup)  # Call setup after 5 seconds
-        self.loop_timer = self.create_timer(0.5, self.loop_callback)  # Call every 500 ms
+        self.loop_timer = self.create_timer(self.ticker_interval_sec, self.loop_callback)  # Call often
+
         self.detection_pub = self.create_publisher(Detection2DArray, 'face_gesture_detections', 10)  # Add publisher
+
+        self.sensor_ready = False  # Flag to indicate sensor is initialized
         self.print_time_counter = 0  # Add a counter for print_time()
         self.start_time = datetime.now()  # Store program start time
         
@@ -72,31 +86,29 @@ class FaceGestureSensorNode(Node):
         
         self.setup_timer.cancel()  # Cancel the timer after first call
 
-        '''
         # Set face detection score threshold (0~100)
-        if gfd.set_face_detect_thres(60):
-            self.get_logger().info("Face detection threshold set to 60.")
+        if gfd.set_face_detect_thres(self.face_detect_threshold):
+            self.get_logger().info("Face detection threshold set to {} percent.".format(self.face_detect_threshold))
         else:
             self.get_logger().error("Set the face detection threshold fail.")
             rclpy.shutdown()
             return
 
         # Set gesture detection score threshold (0~100)
-        if gfd.set_gesture_detect_thres(60):
-            self.get_logger().info("Gesture detection threshold set to 60.")
+        if gfd.set_gesture_detect_thres(self.gesture_detect_threshold):
+            self.get_logger().info("Gesture detection threshold set to {} percent.".format(self.gesture_detect_threshold))
         else:
             self.get_logger().error("Set the gesture detection threshold fail.")
             rclpy.shutdown()
             return
 
         # Set detection range, 0~100
-        if gfd.set_detect_thres(100):
-            self.get_logger().info("Detection range set to maximum.")
+        if gfd.set_detect_thres(self.gesture_detect_range):
+            self.get_logger().info("Detection range set to {} percent of max distance.".format(self.gesture_detect_range))
         else:
             self.get_logger().error("Set the gesture detection range fail.")
             rclpy.shutdown()
             return
-        '''
 
         # Get face detection score threshold (0~100)
         self.get_logger().info("face detection threshold: {}".format(gfd.get_face_detect_thres()))
