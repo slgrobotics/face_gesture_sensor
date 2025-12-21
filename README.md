@@ -1,8 +1,10 @@
 Visit my [main project Wiki](https://github.com/slgrobotics/articubot_one/wiki) for more info.
 
-## A ROS2 Node for DFRobot AI Gesture and Face Detection Sensor 
+## A ROS2 Driver Node for DFRobot AI Gesture and Face Detection Sensor 
 
 Based on [DFRobot Python code](https://github.com/DFRobot/DFRobot_GestureFaceDetection/tree/master/python/raspberrypi)
+
+Works with Nav2 / Behavior Trees - custom plugins [here](https://github.com/slgrobotics/slg_bt_plugins).
 
 Product Link: https://www.dfrobot.com/product-2914.html
 
