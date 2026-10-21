@@ -3,6 +3,7 @@
 from math import pi
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
 
 from vision_msgs.msg import Detection2DArray
 from std_msgs.msg import Bool, String, Float32
@@ -260,11 +261,12 @@ def main(args=None):
 
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.timer import Timer
+from rclpy.executors import ExternalShutdownException
 from datetime import datetime
 #import traceback
 
@@ -19,15 +19,6 @@ USE_I2C = True  # Set to True to use I2C, False to use UART
 # Define device address and baud rate
 DEVICE_ID = 0x72
 UART_BAUD_RATE = 9600
-
-# Choose between I2C or UART based on the macro definition
-if USE_I2C:
-    # Using I2C interface
-    gfd = DFRobot_GestureFaceDetection_I2C(bus=1, addr=DEVICE_ID)  # Assuming I2C bus 1 is used
-else:
-    # Using UART interface
-    gfd = DFRobot_GestureFaceDetection_UART(baud=UART_BAUD_RATE, addr=DEVICE_ID)
-
 
 class FaceGestureSensorNode(Node):
 
@@ -48,7 +39,7 @@ class FaceGestureSensorNode(Node):
     }
 
     def __init__(self):
-        super().__init__('face_gesture_sensor_node')  # Initialize the Node with a unique name
+        super().__init__('fgs_node')  # Initialize the Node with a unique name
 
         self.declare_parameter('ticker_interval_sec', 0.1)     # Ticker interval (defines rate or publishing all messages)
         self.declare_parameter('face_detect_threshold', 60)    # 0..100
@@ -59,6 +50,13 @@ class FaceGestureSensorNode(Node):
         self.face_detect_threshold = self.get_parameter('face_detect_threshold').value
         self.gesture_detect_threshold = self.get_parameter('gesture_detect_threshold').value
         self.gesture_detect_range = self.get_parameter('gesture_detect_range').value
+
+        # Construct the transport only after ROS initialization.
+        if USE_I2C:
+            self.sensor = DFRobot_GestureFaceDetection_I2C(bus=1, addr=DEVICE_ID)
+        else:
+            self.sensor = DFRobot_GestureFaceDetection_UART(
+                baud=UART_BAUD_RATE, addr=DEVICE_ID)
 
         self.get_logger().info('Face Gesture Sensor node has been started!')
 
@@ -79,7 +77,7 @@ class FaceGestureSensorNode(Node):
         """
         # This will be called after 5 seconds - let the sensor to start.
 
-        while gfd.begin() == False:
+        if not self.sensor.begin():
             self.get_logger().error("Communication with device failed, please check connection")
             rclpy.shutdown()
             return
@@ -87,7 +85,7 @@ class FaceGestureSensorNode(Node):
         self.setup_timer.cancel()  # Cancel the timer after first call
 
         # Set face detection score threshold (0~100)
-        if gfd.set_face_detect_thres(self.face_detect_threshold):
+        if self.sensor.set_face_detect_thres(self.face_detect_threshold):
             self.get_logger().info("Face detection threshold set to {} percent.".format(self.face_detect_threshold))
         else:
             self.get_logger().error("Set the face detection threshold fail.")
@@ -95,7 +93,7 @@ class FaceGestureSensorNode(Node):
             return
 
         # Set gesture detection score threshold (0~100)
-        if gfd.set_gesture_detect_thres(self.gesture_detect_threshold):
+        if self.sensor.set_gesture_detect_thres(self.gesture_detect_threshold):
             self.get_logger().info("Gesture detection threshold set to {} percent.".format(self.gesture_detect_threshold))
         else:
             self.get_logger().error("Set the gesture detection threshold fail.")
@@ -103,7 +101,7 @@ class FaceGestureSensorNode(Node):
             return
 
         # Set detection range, 0~100
-        if gfd.set_detect_thres(self.gesture_detect_range):
+        if self.sensor.set_detect_thres(self.gesture_detect_range):
             self.get_logger().info("Detection range set to {} percent of max distance.".format(self.gesture_detect_range))
         else:
             self.get_logger().error("Set the gesture detection range fail.")
@@ -111,13 +109,13 @@ class FaceGestureSensorNode(Node):
             return
 
         # Get face detection score threshold (0~100)
-        self.get_logger().info("face detection threshold: {}".format(gfd.get_face_detect_thres()))
+        self.get_logger().info("face detection threshold: {}".format(self.sensor.get_face_detect_thres()))
 
         # Get gesture detection score threshold (0~100)
-        self.get_logger().info("gesture detection threshold: {}".format(gfd.get_gesture_detect_thres()))
+        self.get_logger().info("gesture detection threshold: {}".format(self.sensor.get_gesture_detect_thres()))
 
         # Get detection range, 0~100
-        self.get_logger().info("gesture detection range: {}".format(gfd.get_detect_thres()))
+        self.get_logger().info("gesture detection range: {}".format(self.sensor.get_detect_thres()))
 
         self.sensor_ready = True
 
@@ -130,21 +128,21 @@ class FaceGestureSensorNode(Node):
 
         self.print_time()
 
-        num_faces = gfd.get_face_number()
+        num_faces = self.sensor.get_face_number()
 
         # Check if any faces are detected
         if num_faces > 0:
             self.get_logger().info("Number of faces detected: {}".format(num_faces))
 
             # Get face score and position coordinates
-            face_score = gfd.get_face_score()
-            face_x = gfd.get_face_location_x()
-            face_y = gfd.get_face_location_y()
+            face_score = self.sensor.get_face_score()
+            face_x = self.sensor.get_face_location_x()
+            face_y = self.sensor.get_face_location_y()
             
             self.get_logger().info("Detect face at (x = {}, y = {}, score = {})".format(face_x, face_y, face_score))
             
-            gesture_type = gfd.get_gesture_type()
-            gesture_score = gfd.get_gesture_score()
+            gesture_type = self.sensor.get_gesture_type()
+            gesture_score = self.sensor.get_gesture_score()
 
             self.print_gesture(gesture_type, gesture_score)
 
@@ -158,12 +156,12 @@ class FaceGestureSensorNode(Node):
             center.position = Point2D(x=float(face_x), y=float(face_y))
             center.theta = 0.0  # Assuming theta is not used for 2D detection
             face_bbox = BoundingBox2D(center=center, size_x=10.0, size_y=10.0)
-            detection = Detection2D(bbox=face_bbox)
+            detection = Detection2D(header=header, bbox=face_bbox)
 
             # Fill face_score in results
             hypothesis_face = ObjectHypothesisWithPose()
             hypothesis_face.hypothesis = ObjectHypothesis()
-            hypothesis_face.hypothesis.score = float(face_score)
+            hypothesis_face.hypothesis.score = float(face_score) / 100.0
             hypothesis_face.hypothesis.class_id = "face"
             detection.results.append(hypothesis_face)
 
@@ -171,7 +169,7 @@ class FaceGestureSensorNode(Node):
             if gesture_type > 0 and gesture_score > 0:
                 hypothesis_gesture = ObjectHypothesisWithPose()
                 hypothesis_gesture.hypothesis = ObjectHypothesis()
-                hypothesis_gesture.hypothesis.score = float(gesture_score)
+                hypothesis_gesture.hypothesis.score = float(gesture_score) / 100.0
                 gesture_str = self.gesture_names_long.get(gesture_type, "Unknown") # or str(gesture_type)
                 hypothesis_gesture.hypothesis.class_id = gesture_str
                 detection.results.append(hypothesis_gesture)
@@ -195,15 +193,17 @@ class FaceGestureSensorNode(Node):
         
     def destroy_node(self):
         self.loop_timer.cancel()  # Cancel the loop timer
-        #gfd.destroy()
-        super().destroy_node()
+        self.setup_timer.cancel()
+        if not USE_I2C:
+            self.sensor._ser.close()
+        return super().destroy_node()
 
 def main(args=None):
     rclpy.init(args=args)
     node = FaceGestureSensorNode()
     try:
         rclpy.spin(node)  # Keep the node alive and processing callbacks
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         # can't log here, rclpy is already shutting down
         pass  # Handle keyboard interrupt gracefully
     #except Exception:

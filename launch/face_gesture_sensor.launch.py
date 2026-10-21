@@ -15,7 +15,8 @@ def generate_launch_description():
         package='face_gesture_sensor',
         executable='fgs_node',
         name='fgs_node',
-        output='screen'
+        output='screen',
+        parameters=[params_file]
     )
     
     perception_adapter_node = Node(

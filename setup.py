@@ -1,8 +1,3 @@
-# This is not used until you change package.xml to include the following:
-#   <export>
-#     <build_type>ament_python</build_type>
-#   </export>
-
 from setuptools import find_packages, setup
 from glob import glob
 import os
@@ -12,8 +7,7 @@ package_name = 'face_gesture_sensor'
 setup(
     name=package_name,
     version='0.1.0',
-    #packages=find_packages(),
-    packages=[package_name, package_name + '/utils'],
+    packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -23,13 +17,7 @@ setup(
         # config files
         (os.path.join('share', package_name, 'config'), glob(os.path.join('config', '*.yaml'))),
     ],
-    install_requires=[
-        'setuptools',
-        'serial',
-        'smbus2',
-        #'DFRobot_GestureFaceDetection',
-        #'DFRobot_RTU'
-        ],
+    install_requires=['setuptools', 'pyserial', 'smbus2'],
     zip_safe=True,
     maintainer='Sergei Grichine',
     maintainer_email='slg@quakemap.com',

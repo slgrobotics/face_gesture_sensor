@@ -1,12 +1,18 @@
 Visit my [main project Wiki](https://github.com/slgrobotics/articubot_one/wiki) for more info.
 
-## A ROS2 Driver Node for DFRobot AI Gesture and Face Detection Sensor 
+## A ROS 2 Lyrical Driver for DFRobot AI Gesture and Face Detection Sensor
 
 Based on [DFRobot Python code](https://github.com/DFRobot/DFRobot_GestureFaceDetection/tree/master/python/raspberrypi)
 
 Works with Nav2 / Behavior Trees - custom plugins [here](https://github.com/slgrobotics/slg_bt_plugins).
 
 Product Link: https://www.dfrobot.com/product-2914.html
+
+Targets ROS 2 Lyrical on Ubuntu 26.04 with Python 3.14. Install ROS 2
+Lyrical first, then enable I2C on the Raspberry Pi and give your user access
+to `/dev/i2c-1` (typically through the `i2c` group). The default transport is
+I2C bus 1, address `0x72`; UART remains selectable through `USE_I2C` in
+`fgs_node.py` and uses `/dev/ttyAMA0` at 9600 baud.
 
 #### On a Raspberry Pi with the sensor connected to I2C:
 
@@ -19,19 +25,23 @@ git clone https://github.com/slgrobotics/face_gesture_sensor.git
 
 Install dependencies:
 ```
+source /opt/ros/lyrical/setup.bash
+cd ~/gesture_ws
 sudo rosdep init    # do it once, if you haven't done it before
 rosdep update
-rosdep install --from-paths src --ignore-src --rosdistro=${ROS_DISTRO} -r -y
+rosdep install --from-paths src --ignore-src --rosdistro lyrical -y
 ```
 
 Build it:
 ```
 cd ~/gesture_ws
-colcon build
+source /opt/ros/lyrical/setup.bash
+colcon build --packages-select face_gesture_sensor
 ```
 
 Run the node:
 ```
+source /opt/ros/lyrical/setup.bash
 source ~/gesture_ws/install/setup.bash
 
 ros2 run face_gesture_sensor fgs_node
@@ -39,6 +49,26 @@ ros2 run face_gesture_sensor fgs_node
 ros2 launch face_gesture_sensor face_gesture_sensor.launch.py
 
 ```
+The launch file starts both the driver and perception adapter and loads
+`config/params.yaml` for both. Running `fgs_node` alone uses its defaults;
+pass `--ros-args --params-file <path-to-params.yaml>` to override them.
+The sensor initializes after a five-second startup delay.
+
+Detections are published on `face_gesture_detections` as
+`vision_msgs/Detection2DArray`, with pixel coordinates and confidence scores
+in **0.0–1.0**. Sensor threshold parameters still use **1–100** percentages.
+Consumers of earlier versions that expected 0–100 message scores must adjust
+their thresholds. Existing gesture labels and BT topics are preserved.
+Audio uses `aplay` and `flite`, installed by rosdep.
+
+Run the hardware-independent compatibility tests after building:
+
+```bash
+source ~/gesture_ws/install/setup.bash
+colcon test --packages-select face_gesture_sensor --python-testing pytest
+colcon test-result --verbose
+```
+
 ### Nav2 Behavior Trees integration
 
 Please refer to [main project Wiki](https://github.com/slgrobotics/articubot_one/wiki/Behavior-Tree-for-Gesture-and-Face-Detection-Sensor)
