@@ -201,8 +201,8 @@ class PerceptionAdapter(Node):
 
         if self.state == 'idle':
             # First face detection: greet and start tracking
-            # expect face_x in range 0...640
-            self.get_logger().info(f"Face detected (first time) at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error_degrees:.2f} degrees")
+            # expect face_x in range 0...640. Positive degrees means face is to the left of center (robot should turn left)
+            self.get_logger().info(f"Face detected (first time) at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error_degrees:.1f} degrees")
 
             if(self.face_detected_sound != ''):
                 # Play greeting sound, once per appearance
@@ -219,7 +219,7 @@ class PerceptionAdapter(Node):
               abs(face_x - self._last_logged_face_x) >= self.log_position_change_px):
             self._last_logged_face_x = face_x
             # Compare against the last logged position so slow movement accumulates.
-            self.get_logger().info(f"Face at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error_degrees:.2f} degrees")
+            self.get_logger().info(f"Face at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error_degrees:.1f} degrees")
 
 
     def _log_gesture_change(self, gesture):
