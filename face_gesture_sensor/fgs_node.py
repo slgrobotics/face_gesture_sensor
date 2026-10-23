@@ -120,7 +120,7 @@ class FaceGestureSensorNode(Node):
         self.sensor_ready = True
 
     def loop_callback(self):
-        # This method will be called every 500 ms
+        # This method will be called every ticker_interval_sec
         #self.get_logger().info('Periodic callback triggered')
 
         if not self.sensor_ready:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from math import pi
+from math import degrees, pi
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
@@ -176,6 +176,7 @@ class PerceptionAdapter(Node):
 
         angle_factor = pi / (6 * 320)   # Factor to convert pixel error to angle error (assume FOV +-30 degrees = +-320 pixels)
         angle_error = distance_px * angle_factor
+        angle_error_degrees = degrees(angle_error)
 
         self.face_detected_pub.publish(Bool(data=True)) # Face detected event, publish continuously while face is in view
 
@@ -194,7 +195,7 @@ class PerceptionAdapter(Node):
         if self.state == 'idle':
             # First face detection: greet and start tracking
             # expect face_x in range 0...640
-            self.get_logger().info(f"Face detected (first time) at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
+            self.get_logger().info(f"Face detected (first time) at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error_degrees:.2f} degrees")
 
             if(self.face_detected_sound != ''):
                 # Play greeting sound, once per appearance
@@ -208,7 +209,7 @@ class PerceptionAdapter(Node):
 
         elif self.state == 'tracking':
             # continuously publish face position deviation from the center of view, in pixels
-            self.get_logger().info(f"Face at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error}")
+            self.get_logger().info(f"Face at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error_degrees:.2f} degrees")
 
 
     def _handle_like(self):
