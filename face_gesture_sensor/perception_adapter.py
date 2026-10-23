@@ -45,6 +45,12 @@ class PerceptionAdapter(Node):
         super().__init__('perception_adapter')
 
         # ---- parameters ----
+        self.declare_parameter('log_position_change_px', 20.0)
+        self.log_position_change_px = self.get_parameter('log_position_change_px').value
+        if self.log_position_change_px <= 0:
+            raise ValueError('log_position_change_px must be positive')
+        self._last_logged_face_x = None
+
         self.declare_parameter('face_detected_sound', '')
         self.declare_parameter('face_detected_text', '')
         self.declare_parameter('min_confidence', 0.6)
@@ -137,6 +143,7 @@ class PerceptionAdapter(Node):
         if self.state == 'tracking' and (now - self.last_face_time) > self.face_cooldown:
             self.get_logger().info("Face disappeared, resetting state to idle")
             self.state = 'idle'
+            self._last_logged_face_x = None
 
     def _say_something(self, text):
         """
@@ -206,14 +213,22 @@ class PerceptionAdapter(Node):
                 self._say_something(self.face_detected_text)
 
             self.state = 'tracking'
+            self._last_logged_face_x = face_x
 
-        elif self.state == 'tracking':
-            # continuously publish face position deviation from the center of view, in pixels
+        elif (self._last_logged_face_x is None or
+              abs(face_x - self._last_logged_face_x) >= self.log_position_change_px):
+            self._last_logged_face_x = face_x
+            # Compare against the last logged position so slow movement accumulates.
             self.get_logger().info(f"Face at x={face_x}, distance_px: {distance_px}  angle_error: {angle_error_degrees:.2f} degrees")
 
 
+    def _log_gesture_change(self, gesture):
+        # Keep refreshing/publishing gestures even when their logs are suppressed.
+        if gesture != self.last_gesture or time.time() - self.last_gesture_time >= 1.0:
+            self.get_logger().info(f"Gesture: {gesture}")
+
     def _handle_like(self):
-        self.get_logger().info("Gesture: LIKE")
+        self._log_gesture_change("LIKE")
         # Notify BT
         self.last_gesture = 'LIKE'
         now = time.time()
@@ -224,7 +239,7 @@ class PerceptionAdapter(Node):
         # Add custom action if needed (e.g., play sound or trigger motion)
 
     def _handle_ok(self):
-        self.get_logger().info("Gesture: OK")
+        self._log_gesture_change("OK")
         self.last_gesture = 'OK'
         now = time.time()
         self.last_gesture_time = now  # Update last gesture time
@@ -232,7 +247,7 @@ class PerceptionAdapter(Node):
         self._say_something("Okay")
 
     def _handle_stop(self):
-        self.get_logger().info("Gesture: STOP")
+        self._log_gesture_change("STOP")
         self.last_gesture = 'STOP'
         now = time.time()
         self.last_gesture_time = now  # Update last gesture time
@@ -240,7 +255,7 @@ class PerceptionAdapter(Node):
         self._say_something("Stop")
 
     def _handle_yes(self):
-        self.get_logger().info("Gesture: YES")
+        self._log_gesture_change("YES")
         self.last_gesture = 'YES'
         now = time.time()
         self.last_gesture_time = now  # Update last gesture time
@@ -248,7 +263,7 @@ class PerceptionAdapter(Node):
         self._say_something("Yes")
 
     def _handle_six(self):
-        self.get_logger().info("Gesture: SIX")
+        self._log_gesture_change("SIX")
         self.last_gesture = 'SIX'
         now = time.time()
         self.last_gesture_time = now  # Update last gesture time

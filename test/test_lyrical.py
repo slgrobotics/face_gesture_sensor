@@ -88,3 +88,91 @@ def test_installed_launch_parameters(ros_context):
     finally:
         adapter.destroy_node()
         driver.destroy_node()
+
+
+def test_driver_logs_changes_but_keeps_publishing(ros_context):
+    sensor = Mock()
+    sensor.get_face_number.return_value = 1
+    sensor.get_face_score.return_value = 74
+    sensor.get_face_location_x.return_value = 100
+    sensor.get_face_location_y.return_value = 200
+    sensor.get_gesture_type.return_value = 3
+    sensor.get_gesture_score.return_value = 93
+    with patch('face_gesture_sensor.fgs_node.DFRobot_GestureFaceDetection_I2C',
+               return_value=sensor):
+        driver = FaceGestureSensorNode()
+    logger = Mock()
+    try:
+        driver.sensor_ready = True
+        driver.detection_pub = Mock()
+        with patch.object(driver, 'get_logger', return_value=logger):
+            driver.loop_callback()
+            assert logger.info.call_count == 3  # count, position, gesture
+            logger.reset_mock()
+            sensor.get_face_score.return_value = 75
+            sensor.get_gesture_score.return_value = 94
+            sensor.get_face_location_x.return_value = 110
+            driver.loop_callback()
+            logger.info.assert_not_called()
+            sensor.get_face_location_x.return_value = 120
+            driver.loop_callback()
+            assert logger.info.call_count == 1  # cumulative 20-pixel movement
+            assert driver.detection_pub.publish.call_count == 3
+            logger.reset_mock()
+            sensor.get_gesture_type.return_value = 2
+            driver.loop_callback()
+            assert logger.info.call_count == 1
+            logger.reset_mock()
+            sensor.get_face_number.return_value = 0
+            driver.loop_callback()
+            assert logger.info.call_count == 2  # face lost, gesture cleared
+            logger.reset_mock()
+            driver.loop_callback()
+            logger.info.assert_not_called()
+            sensor.get_face_number.return_value = 1
+            driver.loop_callback()
+            assert logger.info.call_count == 3  # same position/gesture can reappear
+    finally:
+        driver.destroy_node()
+
+
+def test_adapter_logs_changes_but_keeps_publishing(ros_context):
+    adapter = PerceptionAdapter()
+    logger = Mock()
+    try:
+        adapter.face_detected_pub = Mock()
+        adapter.face_yaw_err_pub = Mock()
+        adapter.face_gesture_detected_pub = Mock()
+        adapter.gesture_pub = Mock()
+        with patch.object(adapter, 'get_logger', return_value=logger), \
+                patch.object(adapter, '_say_something'), \
+                patch('face_gesture_sensor.perception_adapter.time.time', return_value=100.0) as now:
+            adapter._handle_face(100)
+            assert logger.info.call_count == 1
+            logger.reset_mock()
+            adapter._handle_face(110)
+            logger.info.assert_not_called()
+            adapter._handle_face(120)
+            assert logger.info.call_count == 1
+            assert adapter.face_detected_pub.publish.call_count == 3
+            assert adapter.face_yaw_err_pub.publish.call_count == 3
+            assert adapter.face_gesture_detected_pub.publish.call_count == 3
+            logger.reset_mock()
+            adapter._handle_stop()
+            adapter._handle_stop()
+            assert logger.info.call_count == 1
+            assert adapter.gesture_pub.publish.call_count == 2
+            adapter._handle_ok()
+            assert logger.info.call_count == 2
+            now.return_value = 102.0
+            adapter._handle_ok()
+            assert logger.info.call_count == 3  # same gesture after a gap
+            now.return_value = 110.0
+            logger.reset_mock()
+            adapter._ticker_callback()
+            adapter._ticker_callback()
+            assert logger.info.call_count == 1
+            adapter._handle_face(120)
+            assert logger.info.call_count == 2  # reappearance at the same position
+    finally:
+        adapter.destroy_node()

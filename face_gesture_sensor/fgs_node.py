@@ -1,7 +1,6 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
-from datetime import datetime
 #import traceback
 
 from .utils.DFRobot_GestureFaceDetection import DFRobot_GestureFaceDetection_I2C, DFRobot_GestureFaceDetection_UART
@@ -41,6 +40,11 @@ class FaceGestureSensorNode(Node):
     def __init__(self):
         super().__init__('fgs_node')  # Initialize the Node with a unique name
 
+        self.declare_parameter('log_position_change_px', 20.0)
+        self.log_position_change_px = self.get_parameter('log_position_change_px').value
+        if self.log_position_change_px <= 0:
+            raise ValueError('log_position_change_px must be positive')
+
         self.declare_parameter('ticker_interval_sec', 0.1)     # Ticker interval (defines rate or publishing all messages)
         self.declare_parameter('face_detect_threshold', 60)    # 0..100
         self.declare_parameter('gesture_detect_threshold', 60) # 0..100
@@ -66,8 +70,9 @@ class FaceGestureSensorNode(Node):
         self.detection_pub = self.create_publisher(Detection2DArray, 'face_gesture_detections', 10)  # Add publisher
 
         self.sensor_ready = False  # Flag to indicate sensor is initialized
-        self.print_time_counter = 0  # Add a counter for print_time()
-        self.start_time = datetime.now()  # Store program start time
+        self._last_face_count = 0
+        self._last_logged_position = None
+        self._last_logged_gesture = 0
         
     def setup(self):
         """
@@ -126,20 +131,28 @@ class FaceGestureSensorNode(Node):
         if not self.sensor_ready:
             return
 
-        self.print_time()
-
         num_faces = self.sensor.get_face_number()
+
+        if num_faces != self._last_face_count:
+            self.get_logger().info(f"Number of faces detected: {num_faces}")
+            self._last_face_count = num_faces
+        if num_faces == 0:
+            self._last_logged_position = None
+            self.print_gesture(0, 0)
 
         # Check if any faces are detected
         if num_faces > 0:
-            self.get_logger().info("Number of faces detected: {}".format(num_faces))
 
             # Get face score and position coordinates
             face_score = self.sensor.get_face_score()
             face_x = self.sensor.get_face_location_x()
             face_y = self.sensor.get_face_location_y()
             
-            self.get_logger().info("Detect face at (x = {}, y = {}, score = {})".format(face_x, face_y, face_score))
+            previous = self._last_logged_position
+            if previous is None or max(abs(face_x - previous[0]), abs(face_y - previous[1])) >= self.log_position_change_px:
+                self.get_logger().info(
+                    f"Detect face at (x = {face_x}, y = {face_y}, score = {face_score})")
+                self._last_logged_position = (face_x, face_y)
             
             gesture_type = self.sensor.get_gesture_type()
             gesture_score = self.sensor.get_gesture_score()
@@ -177,20 +190,16 @@ class FaceGestureSensorNode(Node):
             detection_array_msg.detections.append(detection)
             self.detection_pub.publish(detection_array_msg)  # Publish the message
 
-    def print_time(self):
-        self.print_time_counter += 1
-        if self.print_time_counter % 10 == 0:
-            now = datetime.now()
-            current_time = now.strftime("%H:%M:%S")
-            elapsed = now - self.start_time
-            elapsed_str = str(elapsed).split('.')[0]  # Format as H:M:S
-            self.get_logger().info(f"Current Time: {current_time} | Elapsed: {elapsed_str}")
-            
     def print_gesture(self, gesture_type, gesture_score):
-        if gesture_type > 0 and gesture_score > 0:
-            gesture_str = self.gesture_names_long.get(gesture_type, "Unknown")
-            self.get_logger().info(f"Gesture: {gesture_str}, Score: {gesture_score}")
-        
+        current = gesture_type if gesture_type > 0 and gesture_score > 0 else 0
+        if current != self._last_logged_gesture:
+            if current:
+                gesture_str = self.gesture_names_long.get(current, "Unknown")
+                self.get_logger().info(f"Gesture: {gesture_str}, Score: {gesture_score}")
+            else:
+                self.get_logger().info("Gesture cleared")
+            self._last_logged_gesture = current
+
     def destroy_node(self):
         self.loop_timer.cancel()  # Cancel the loop timer
         self.setup_timer.cancel()

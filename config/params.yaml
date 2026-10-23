@@ -2,6 +2,7 @@
 # Sensor driver configuration
 fgs_node:
   ros__parameters:
+    log_position_change_px: 20.0  # Minimum movement since last position log
     ticker_interval_sec: 0.1
     face_detect_threshold: 60     # 1..100
     gesture_detect_threshold: 60  # 1..100
@@ -15,4 +16,5 @@ perception_adapter:
     min_confidence: 0.6
     face_cooldown_sec: 2.0
     camera_center_x: 320.0
+    log_position_change_px: 20.0  # Minimum movement since last position log
     ticker_interval_sec: 0.1

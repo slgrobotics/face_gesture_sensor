@@ -69,6 +69,13 @@ colcon test --packages-select face_gesture_sensor --python-testing pytest
 colcon test-result --verbose
 ```
 
+Runtime logs report face appearance/loss, gesture changes, and position changes
+of at least `log_position_change_px` pixels (default `20.0`, must be positive).
+Position changes are measured from the last logged position, so slow movement
+still gets reported. Confidence jitter does not trigger logs. Detection and BT
+messages continue at their existing rate. The default applies to both nodes,
+including when launched directly by Seggy; override it with ROS parameters.
+
 ### Nav2 Behavior Trees integration
 
 Please refer to [main project Wiki](https://github.com/slgrobotics/articubot_one/wiki/Behavior-Tree-for-Gesture-and-Face-Detection-Sensor)
